@@ -1,5 +1,6 @@
 pub mod edgetx;
 pub mod ethos;
+pub mod jeti;
 
 use crate::error::ConversionError;
 use crate::ir::model::ModelIr;

@@ -5,7 +5,7 @@ use std::path::PathBuf;
 #[command(
     name = "modell-converter",
     version,
-    about = "Bidirectional FrSky Ethos ↔ EdgeTX model converter"
+    about = "Multi-format RC model converter: EdgeTX ↔ Ethos ↔ Jeti Duplex"
 )]
 pub struct Cli {
     #[command(subcommand)]
@@ -66,6 +66,8 @@ pub enum CliFormat {
     Edgetx,
     #[value(alias = "ethos")]
     Ethos,
+    #[value(alias = "jeti")]
+    JetiDuplex,
 }
 
 impl From<CliFormat> for modell_converter::format::Format {
@@ -73,6 +75,7 @@ impl From<CliFormat> for modell_converter::format::Format {
         match f {
             CliFormat::Edgetx => modell_converter::format::Format::Edgetx,
             CliFormat::Ethos => modell_converter::format::Format::Ethos,
+            CliFormat::JetiDuplex => modell_converter::format::Format::JetiDuplex,
         }
     }
 }

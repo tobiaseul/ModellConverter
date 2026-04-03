@@ -3,4 +3,5 @@
 pub enum Format {
     Edgetx,
     Ethos,
+    JetiDuplex,
 }

@@ -4,6 +4,7 @@ use anyhow::{Context, Result};
 use crate::format::Format;
 use crate::formats::edgetx::EdgeTxFormat;
 use crate::formats::ethos::EthosFormat;
+use crate::formats::jeti::JetiFormat;
 use crate::formats::{FormatParser, FormatSerializer};
 
 pub fn run(from: Format, to: Format, input: &Path, output: Option<&Path>) -> Result<()> {
@@ -18,6 +19,7 @@ pub fn run(from: Format, to: Format, input: &Path, output: Option<&Path>) -> Res
             let ext = match to {
                 Format::Edgetx => "yml",
                 Format::Ethos => "bin",
+                Format::JetiDuplex => "jsn",
             };
             input.with_extension(ext)
         }
@@ -42,6 +44,11 @@ pub fn convert(input_bytes: &[u8], from: &Format, to: &Format) -> Result<Vec<u8>
             let schema = parser.parse(input_bytes)?;
             parser.to_ir(schema)?
         }
+        Format::JetiDuplex => {
+            let parser = JetiFormat::default();
+            let schema = parser.parse(input_bytes)?;
+            parser.to_ir(schema)?
+        }
     };
 
     let output = match to {
@@ -52,6 +59,11 @@ pub fn convert(input_bytes: &[u8], from: &Format, to: &Format) -> Result<Vec<u8>
         }
         Format::Ethos => {
             let ser = EthosFormat::default();
+            let schema = ser.from_ir(&ir)?;
+            ser.serialize(&schema)?
+        }
+        Format::JetiDuplex => {
+            let ser = JetiFormat::default();
             let schema = ser.from_ir(&ir)?;
             ser.serialize(&schema)?
         }
