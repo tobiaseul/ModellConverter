@@ -1,0 +1,55 @@
+header:
+  name: SampleModel
+  notes: Minimal fixture for roundtrip testing
+outputs:
+  - name: Ail
+    min: -1000
+    max: 1000
+    offset: 0
+    reverse: false
+  - name: Ele
+    min: -1000
+    max: 1000
+    offset: 0
+    reverse: false
+  - name: Thr
+    min: -1000
+    max: 1000
+    offset: 0
+    reverse: false
+  - name: Rud
+    min: -1000
+    max: 1000
+    offset: 0
+    reverse: false
+mixes:
+  - ch: 0
+    source: Ail
+    weight: 100
+    offset: 0
+    mode: add
+  - ch: 1
+    source: Ele
+    weight: 100
+    offset: 0
+    mode: add
+  - ch: 2
+    source: Thr
+    weight: 100
+    offset: 0
+    mode: add
+  - ch: 3
+    source: Rud
+    weight: 100
+    offset: 0
+    mode: add
+moduleData:
+  - slot: internal
+    protocol: MULTI
+    channelStart: 0
+    channelEnd: 7
+timers: []
+curves: []
+logicalSwitches: []
+specialFunctions: []
+telemetry: []
