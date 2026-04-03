@@ -6,10 +6,9 @@ fn convert_model(
     input_bytes: Vec<u8>,
     from: Format,
     to: Format,
-) -> Result<tauri::ipc::Response, String> {
-    let output = convert(&input_bytes, &from, &to)
-        .map_err(|e| e.to_string())?;
-    Ok(tauri::ipc::Response::new(output))
+) -> Result<Vec<u8>, String> {
+    convert(&input_bytes, &from, &to)
+        .map_err(|e| e.to_string())
 }
 
 /// Write bytes to a file at the specified path.
