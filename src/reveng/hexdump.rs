@@ -20,10 +20,7 @@ pub fn print_hexdump(data: &[u8], base_offset: u64, width: usize) {
         let hex: String = chunk
             .iter()
             .enumerate()
-            .map(|(i, b)| {
-                let s = format!("{:02x}", b);
-                if i == width / 2 - 1 { format!("{} ", s) } else { format!("{} ", s) }
-            })
+            .map(|(_, b)| format!("{:02x} ", b))
             .collect();
         let ascii: String = chunk
             .iter()

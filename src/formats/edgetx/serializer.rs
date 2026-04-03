@@ -44,7 +44,7 @@ impl FormatSerializer for EdgeTxFormat {
 fn mix_from_ir(m: &ir::Mix) -> schema::MixLine {
     schema::MixLine {
         channel: m.channel_out,
-        name: None,
+        name: m.name.clone(),
         source: source_to_str(&m.source),
         weight: m.weight.0 as i32,
         offset: m.offset.0 as i32,

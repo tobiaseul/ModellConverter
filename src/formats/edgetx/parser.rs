@@ -54,23 +54,32 @@ impl FormatParser for EdgeTxFormat {
 }
 
 fn mix_to_ir(m: schema::MixLine) -> Result<ir::Mix, ConversionError> {
-    Ok(ir::Mix {
-        channel_out: m.channel,
-        source: parse_source(&m.source),
-        weight: ir::Percent(m.weight as f32),
-        offset: ir::Percent(m.offset as f32),
-        curve: m.curve.map(|c| {
+    let curve = m
+        .curve
+        .map(|c| {
             c.trim_start_matches("cv")
                 .parse::<u8>()
                 .map(ir::CurveRef)
-                .unwrap_or(ir::CurveRef(0))
-        }),
+                .map_err(|_| ConversionError::EdgeTxParse(format!("invalid curve reference: {c}")))
+        })
+        .transpose()?;
+
+    let mode = match m.mode.as_str() {
+        "add" | "" => ir::MixMode::Add,
+        "replace" => ir::MixMode::Replace,
+        "multiply" => ir::MixMode::Multiply,
+        other => return Err(ConversionError::EdgeTxParse(format!("unknown mix mode: {other}"))),
+    };
+
+    Ok(ir::Mix {
+        channel_out: m.channel,
+        name: m.name,
+        source: parse_source(&m.source),
+        weight: ir::Percent(m.weight as f32),
+        offset: ir::Percent(m.offset as f32),
+        curve,
         switch: m.switch.as_deref().map(parse_switch_condition),
-        mode: match m.mode.as_str() {
-            "replace" => ir::MixMode::Replace,
-            "multiply" => ir::MixMode::Multiply,
-            _ => ir::MixMode::Add,
-        },
+        mode,
     })
 }
 

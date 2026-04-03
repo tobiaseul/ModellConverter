@@ -44,6 +44,7 @@ pub struct Channel {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Mix {
     pub channel_out: u8,
+    pub name: Option<String>,
     pub source: MixSource,
     pub weight: Percent,
     pub offset: Percent,
