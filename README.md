@@ -143,7 +143,7 @@ Contributions welcome! Areas of interest:
 
 ## License
 
-[Your License Here]
+MIT License — See [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
