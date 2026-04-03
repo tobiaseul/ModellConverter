@@ -11,6 +11,9 @@ pub enum ConversionError {
     #[error("Field '{field}' not yet supported for Ethos format (pending reverse engineering)")]
     EthosFieldNotSupported { field: &'static str },
 
+    #[error("Jeti JSON parse error: {0}")]
+    JetiParse(String),
+
     #[error("IR validation failed: {0}")]
     IrValidation(String),
 
