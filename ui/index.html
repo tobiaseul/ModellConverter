@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ModellConverter</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>ModellConverter</h1>
+
+        <div class="format-selectors">
+            <div class="selector-group">
+                <label for="from-format">From:</label>
+                <select id="from-format">
+                    <option value="edgetx">EdgeTX</option>
+                    <option value="ethos">Ethos</option>
+                    <option value="jeti">Jeti Duplex</option>
+                </select>
+            </div>
+
+            <div class="selector-group">
+                <label for="to-format">To:</label>
+                <select id="to-format">
+                    <option value="jeti">Jeti Duplex</option>
+                    <option value="edgetx">EdgeTX</option>
+                    <option value="ethos">Ethos</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="drop-zone" id="drop-zone">
+            <div class="drop-zone-content">
+                <svg class="drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2v20M2 12h20"></path>
+                </svg>
+                <p class="drop-text">Drop model file here</p>
+                <p class="drop-subtext">or <a href="#" id="browse-btn">click to browse</a></p>
+            </div>
+        </div>
+
+        <button id="convert-btn" class="convert-button" disabled>
+            Convert & Save
+        </button>
+
+        <div class="status-area">
+            <div id="status-message" class="status-message"></div>
+        </div>
+    </div>
+
+    <input type="file" id="file-input" style="display: none;" accept=".yml,.bin,.jsn">
+    <script src="app.js"></script>
+</body>
+</html>

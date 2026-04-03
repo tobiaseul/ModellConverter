@@ -1,0 +1,31 @@
+{
+  "productName": "ModellConverter",
+  "identifier": "com.modellconverter.app",
+  "version": "0.1.0",
+  "build": {
+    "frontendDist": "../ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "ModellConverter",
+        "width": 560,
+        "height": 420,
+        "resizable": false,
+        "decorations": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "icon": [
+      "icons/icon.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}
