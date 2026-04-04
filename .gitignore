@@ -1,5 +1,6 @@
 # Build artifacts
 /target
+/build
 src-tauri/gen/
 src-tauri/target/
 

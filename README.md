@@ -61,16 +61,32 @@ modell-converter reveng diff --file-a model1.bin --file-b model2.bin
 
 ### Desktop GUI (Tauri)
 
+**Development Mode:**
 ```bash
 cd src-tauri
-cargo tauri dev       # Run in development mode
-cargo tauri build     # Build for your platform
+cargo tauri dev       # Opens app with hot reload
 ```
 
-Outputs:
-- Windows: `.exe` + `.msi` installer
-- macOS: `.app` + `.dmg` image
-- Linux: `.AppImage` + `.deb` package
+**Build for Current Platform:**
+```bash
+cd src-tauri
+cargo tauri build
+```
+
+**Automated Build Script:**
+```bash
+./build-all.sh        # Builds CLI and GUI for your platform
+```
+
+The build script automatically detects your OS and generates the appropriate artifacts:
+- **macOS:** `.app` bundle + `.dmg` installer
+- **Windows:** `.exe` binary + `.msi` installer  
+- **Linux:** `.AppImage` bundle + `.deb` package
+
+**Platform Requirements:**
+- macOS: Xcode Command Line Tools (`xcode-select --install`)
+- Windows: Visual Studio Build Tools or MSVC toolchain
+- Linux: Build essentials (`sudo apt install build-essential` on Ubuntu/Debian)
 
 ### CLI Binary Only
 
