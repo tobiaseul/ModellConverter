@@ -41,11 +41,11 @@ Launch the application and:
 ### Command-Line Interface
 
 ```bash
-# Basic conversion
-modell-converter convert --from edgetx --to jeti input.yml output.jsn
+# Convert to EdgeTX format
+modell-converter convert --from ethos input.bin output.yml
 
 # Verbose output
-modell-converter convert --from ethos --to edgetx -v input.bin output.yml
+modell-converter convert --from jeti -v input.jsn output.yml
 
 # Reverse engineering tools
 modell-converter reveng hexdump --file model.bin --offset 0x100 --len 32
@@ -76,7 +76,7 @@ Outputs:
 
 ```bash
 cargo build --release
-./target/release/modell-converter convert --from edgetx --to ethos model.yml model.bin
+./target/release/modell-converter convert --from ethos model.bin model.yml
 ```
 
 ## Project Structure
@@ -125,6 +125,24 @@ cargo test
    - `to_bytes()` — Serialize IR to file
 3. Register in `src/convert.rs`
 4. Add tests
+
+## ⚠️ Disclaimer
+
+**All converted model files MUST be verified by a human before use on your RC transmitter.** This tool performs automatic conversion between firmware formats, but conversion errors, data loss, or incompatibilities can occur. 
+
+**The author is NOT responsible for:**
+- Lost or corrupted model files
+- Damage to your transmitter or RC equipment
+- Flight failures or safety incidents caused by conversion errors
+- Any other losses or damages arising from the use of this tool
+
+**Always:**
+1. Backup your original model files before conversion
+2. Test converted files on your transmitter before flying
+3. Verify that all model parameters (rates, endpoints, timers, etc.) are correct
+4. Perform a range check before flying
+
+Use this tool at your own risk.
 
 ## Known Limitations
 

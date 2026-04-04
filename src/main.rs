@@ -17,8 +17,8 @@ fn main() -> Result<()> {
     }
 
     match cli.command {
-        Commands::Convert { from, to, input, output } => {
-            convert::run(from.into(), to.into(), &input, output.as_deref())?;
+        Commands::Convert { from, input, output } => {
+            convert::run(from.into(), modell_converter::format::Format::Edgetx, &input, output.as_deref())?;
         }
         Commands::ReverseEng { tool } => match tool {
             RevEngTool::Hexdump { file, offset, len, width } => {

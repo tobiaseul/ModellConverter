@@ -29,6 +29,8 @@ pub fn run(from: Format, to: Format, input: &Path, output: Option<&Path>) -> Res
         .with_context(|| format!("Failed to write output file: {}", out_path.display()))?;
 
     println!("Converted: {} → {}", input.display(), out_path.display());
+    println!("\n⚠️  WARNING: Always verify the converted file on your transmitter before flying!");
+    println!("The author is NOT responsible for any errors, data loss, or damage caused by conversion.\n");
     Ok(())
 }
 
