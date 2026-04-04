@@ -92,16 +92,7 @@ function selectFile(file) {
 
 function setupFormatSelectors() {
     fromFormat.addEventListener('change', updateConvertButtonState);
-    toFormat.addEventListener('change', () => {
-        // Prevent selecting the same format
-        if (fromFormat.value === toFormat.value) {
-            // Cycle to next available format
-            const formats = ['edgetx', 'ethos', 'jeti'];
-            const nextIndex = (formats.indexOf(toFormat.value) + 1) % formats.length;
-            toFormat.value = formats[nextIndex];
-        }
-        updateConvertButtonState();
-    });
+    // Target format is fixed to EdgeTX
 }
 
 // ============================================================================
@@ -113,7 +104,7 @@ function setupConvertButton() {
 }
 
 function updateConvertButtonState() {
-    const canConvert = selectedFile && fromFormat.value !== toFormat.value;
+    const canConvert = selectedFile !== null;
     convertBtn.disabled = !canConvert;
 }
 
@@ -157,7 +148,7 @@ async function handleConvert() {
         // Save the file using Tauri dialog
         await saveFileWithTauri(bytesToSave, outputName);
 
-        showSuccess(`✓ Saved: ${outputName}`);
+        showSuccess(`✓ Saved: ${outputName} — Verify on your transmitter before flying!`);
     } catch (error) {
         showError(`Error: ${error.message}`);
     } finally {

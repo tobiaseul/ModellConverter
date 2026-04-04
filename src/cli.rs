@@ -5,7 +5,7 @@ use std::path::PathBuf;
 #[command(
     name = "modell-converter",
     version,
-    about = "Multi-format RC model converter: EdgeTX ↔ Ethos ↔ Jeti Duplex"
+    about = "Convert RC model files from Ethos or Jeti Duplex to EdgeTX format"
 )]
 pub struct Cli {
     #[command(subcommand)]
@@ -17,12 +17,10 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Convert a model file between firmware formats
+    /// Convert a model file to EdgeTX format
     Convert {
         #[arg(long, value_enum)]
         from: CliFormat,
-        #[arg(long, value_enum)]
-        to: CliFormat,
         /// Input file path
         input: PathBuf,
         /// Output file path (defaults to <input> with new extension)
