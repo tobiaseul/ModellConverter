@@ -70,7 +70,7 @@ pub enum MixMode {
     Multiply,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum StickAxis {
     Ail,
     Ele,
