@@ -26,6 +26,7 @@ pub struct ModelMeta {
 pub enum FirmwareOrigin {
     EdgeTx,
     Ethos,
+    JetiDuplex,
     Unknown,
 }
 

@@ -1,5 +1,12 @@
 {
-  "name": "SampleJetiModel",
-  "version": 1,
+  "Global": {
+    "Type": "Global",
+    "Name": "SampleJetiModel",
+    "Version": 680,
+    "TxVers": "5.08",
+    "Model-Type": 1,
+    "Filename": "sample.jsn",
+    "Desc": ""
+  },
   "unknownFutureField": "preserved"
 }

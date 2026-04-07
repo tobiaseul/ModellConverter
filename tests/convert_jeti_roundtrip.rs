@@ -7,7 +7,7 @@ fn jeti_parse_does_not_panic() {
     let input = include_bytes!("fixtures/sample_jeti.jsn");
     let fmt = JetiFormat::default();
     let schema = fmt.parse(input).expect("parse failed");
-    assert_eq!(schema.name, "SampleJetiModel");
+    assert_eq!(schema.global.name, "SampleJetiModel");
 }
 
 #[test]
@@ -18,7 +18,7 @@ fn jeti_roundtrip_preserves_name() {
     let schema = fmt.parse(input).expect("parse failed");
     let ir = fmt.to_ir(schema).expect("to_ir failed");
     assert_eq!(ir.meta.name, "SampleJetiModel");
-    assert_eq!(ir.meta.firmware_origin, FirmwareOrigin::Unknown);
+    assert_eq!(ir.meta.firmware_origin, FirmwareOrigin::JetiDuplex);
 
     let out_schema = fmt.from_ir(&ir).expect("from_ir failed");
     let out_bytes = fmt.serialize(&out_schema).expect("serialize failed");
@@ -29,12 +29,14 @@ fn jeti_roundtrip_preserves_name() {
 }
 
 #[test]
-fn jeti_unknown_fields_preserved_in_schema() {
+fn jeti_unknown_sections_preserved_in_schema() {
     let input = include_bytes!("fixtures/sample_jeti.jsn");
     let fmt = JetiFormat::default();
     let schema = fmt.parse(input).expect("parse failed");
-    assert!(schema.extra.contains_key("unknownFutureField"),
-        "unknown fields should be preserved in extra");
+    assert!(
+        schema.extra.contains_key("unknownFutureField"),
+        "unknown top-level sections should be preserved in extra"
+    );
 }
 
 #[test]
