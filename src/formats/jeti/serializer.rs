@@ -51,6 +51,8 @@ impl FormatSerializer for JetiFormat {
                 data: mixes_main_data,
             }),
             mixes_values: Some(mixes_values_data),
+            flight_modes: None,
+            function_specs: None,
             timers: Some(timers),
             telem_detect: Some(telem),
             extra: Map::new(),
@@ -213,6 +215,8 @@ mod tests {
             logic_switches: vec![],
             special_functions: vec![],
             timer: None,
+            flight_modes: vec![],
+            expo_settings: vec![],
         };
 
         let fmt = JetiFormat::default();

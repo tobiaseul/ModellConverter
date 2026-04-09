@@ -13,6 +13,10 @@ pub struct ModelIr {
     pub logic_switches: Vec<LogicSwitch>,
     pub special_functions: Vec<SpecialFunction>,
     pub timer: Option<Timer>,
+    /// Named flight modes in priority order (index 0 = lowest priority / base).
+    pub flight_modes: Vec<FlightMode>,
+    /// Per-axis, per-flight-mode expo and dual-rate settings.
+    pub expo_settings: Vec<ExpoSetting>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -70,7 +74,7 @@ pub enum MixMode {
     Multiply,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum StickAxis {
     Ail,
     Ele,
@@ -187,6 +191,24 @@ pub enum TimerMode {
     Absolute,
     Running,
     ThrottleActive,
+}
+
+/// A named flight mode (base mode is index 0).
+#[derive(Debug, Clone, PartialEq)]
+pub struct FlightMode {
+    pub name: String,
+}
+
+/// Expo and dual-rate settings for one axis in one flight mode.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ExpoSetting {
+    /// Index into ModelIr::flight_modes.
+    pub flight_mode_idx: usize,
+    pub axis: StickAxis,
+    /// Dual-rate: 100 = full deflection, 50 = half.
+    pub dr: Percent,
+    /// Optional expo curve (index into ModelIr::curves).
+    pub curve: Option<CurveRef>,
 }
 
 /// Newtype for microsecond values (servo pulse widths, etc.)

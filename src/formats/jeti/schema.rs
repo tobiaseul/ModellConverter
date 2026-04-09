@@ -26,6 +26,15 @@ pub struct JetiModel {
     #[serde(rename = "Mixes-Values", default)]
     pub mixes_values: Option<Vec<JetiMixValue>>,
 
+    /// User-defined flight modes with switch assignments.
+    #[serde(rename = "Flight-Modes", default)]
+    pub flight_modes: Option<JetiSection<JetiFlightMode>>,
+
+    /// Per-flight-mode expo/DR settings for each function (axis).
+    /// Bare JSON array (not wrapped in {Type, Data}).
+    #[serde(rename = "Function-Specs", default)]
+    pub function_specs: Option<Vec<JetiFunctionSpec>>,
+
     #[serde(rename = "Timers", default)]
     pub timers: Option<JetiSection<JetiTimer>>,
 
@@ -131,6 +140,55 @@ pub struct JetiMixValue {
 }
 
 fn default_direction() -> i32 { 1 }
+
+// ── Flight-Modes ─────────────────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct JetiFlightMode {
+    #[serde(rename = "ID")]
+    pub id: u32,
+    #[serde(rename = "Label", default)]
+    pub label: String,
+    /// Jeti control string for the activating switch.
+    #[serde(rename = "Switch", default)]
+    pub switch: String,
+    #[serde(flatten)]
+    pub extra: Map<String, Value>,
+}
+
+// ── Function-Specs ────────────────────────────────────────────────────────────
+
+/// Per-flight-mode expo and dual-rate settings for one axis function.
+#[derive(Debug, Deserialize, Serialize, Default)]
+pub struct JetiFunctionSpec {
+    /// 0-based index into the flight-modes array.
+    #[serde(rename = "Flight-Mode", default)]
+    pub flight_mode: u32,
+    /// Matches JetiFunction.id.
+    #[serde(rename = "Function-Id", default)]
+    pub function_id: u32,
+    /// [expo%, reserved, reserved] — only first element used.
+    #[serde(rename = "Expo-Pos", default)]
+    pub expo_pos: Vec<i32>,
+    #[serde(rename = "Expo-Neg", default)]
+    pub expo_neg: Vec<i32>,
+    /// [dr1%, dr2%, dr3%] — dr1 is the primary rate.
+    #[serde(rename = "DR-Pos", default)]
+    pub dr_pos: Vec<i32>,
+    #[serde(rename = "DR-Neg", default)]
+    pub dr_neg: Vec<i32>,
+    /// 1 = symmetric expo/DR (use Pos values for both directions).
+    #[serde(rename = "Sym", default)]
+    pub sym: u32,
+    #[serde(rename = "Curve-Type", default)]
+    pub curve_type: u32,
+    #[serde(rename = "Points-In", default)]
+    pub points_in: Vec<i32>,
+    #[serde(rename = "Points-Out", default)]
+    pub points_out: Vec<i32>,
+    #[serde(flatten)]
+    pub extra: Map<String, Value>,
+}
 
 // ── Timers ───────────────────────────────────────────────────────────────────
 

@@ -1,55 +1,195 @@
+semver: 2.11.4
 header:
   name: SampleModel
+  bitmap: ""
+  labels: ""
   notes: Minimal fixture for roundtrip testing
-outputs:
+mixData:
+  - destCh: 0
+    srcRaw: I3
+    weight: 100
+    swtch: NONE
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 1
+    srcRaw: I1
+    weight: 100
+    swtch: NONE
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 2
+    srcRaw: I2
+    weight: 100
+    swtch: NONE
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 3
+    srcRaw: I0
+    weight: 100
+    swtch: NONE
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+expoData:
+  - srcRaw: Rud
+    scale: 0
+    mode: 3
+    chn: 0
+    swtch: NONE
+    flightModes: 000000000
+    weight: 100
+    offset: 0
+    curve:
+      type: 0
+      value: 0
+    trimSource: 0
+    name: ""
+  - srcRaw: Ele
+    scale: 0
+    mode: 3
+    chn: 1
+    swtch: NONE
+    flightModes: 000000000
+    weight: 100
+    offset: 0
+    curve:
+      type: 0
+      value: 0
+    trimSource: 0
+    name: ""
+  - srcRaw: Thr
+    scale: 0
+    mode: 3
+    chn: 2
+    swtch: NONE
+    flightModes: 000000000
+    weight: 100
+    offset: 0
+    curve:
+      type: 0
+      value: 0
+    trimSource: 0
+    name: ""
+  - srcRaw: Ail
+    scale: 0
+    mode: 3
+    chn: 3
+    swtch: NONE
+    flightModes: 000000000
+    weight: 100
+    offset: 0
+    curve:
+      type: 0
+      value: 0
+    trimSource: 0
+    name: ""
+inputNames:
+  "0":
+    val: Rud
+  "1":
+    val: Ele
+  "2":
+    val: Thr
+  "3":
+    val: Ail
+outputChannels:
   - name: Ail
     min: -1000
     max: 1000
     offset: 0
-    reverse: false
+    revert: false
+    curve:
+      type: 0
+      value: 0
+    ppmCenter: 0
+    symetrical: 0
+    failsafe: 0
   - name: Ele
     min: -1000
     max: 1000
     offset: 0
-    reverse: false
+    revert: false
+    curve:
+      type: 0
+      value: 0
+    ppmCenter: 0
+    symetrical: 0
+    failsafe: 0
   - name: Thr
     min: -1000
     max: 1000
     offset: 0
-    reverse: false
+    revert: false
+    curve:
+      type: 0
+      value: 0
+    ppmCenter: 0
+    symetrical: 0
+    failsafe: 0
   - name: Rud
     min: -1000
     max: 1000
     offset: 0
-    reverse: false
-mixes:
-  - ch: 0
-    source: Ail
-    weight: 100
-    offset: 0
-    mode: add
-  - ch: 1
-    source: Ele
-    weight: 100
-    offset: 0
-    mode: add
-  - ch: 2
-    source: Thr
-    weight: 100
-    offset: 0
-    mode: add
-  - ch: 3
-    source: Rud
-    weight: 100
-    offset: 0
-    mode: add
+    revert: false
+    curve:
+      type: 0
+      value: 0
+    ppmCenter: 0
+    symetrical: 0
+    failsafe: 0
 moduleData:
   - slot: internal
     protocol: MULTI
     channelStart: 0
     channelEnd: 7
-timers: []
-curves: []
-logicalSwitches: []
-specialFunctions: []
-telemetry: []

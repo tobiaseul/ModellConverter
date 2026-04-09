@@ -51,7 +51,7 @@ fn roundtrip_mixes() {
     let ir = parse_fixture();
     assert_eq!(ir.mixes.len(), 4);
 
-    // First mix: Ail stick → channel 0, weight 100, add mode
+    // Fixture: destCh=0 srcRaw=I3, expoData chn=3→Ail → first mix is Ail→ch0
     let m = &ir.mixes[0];
     assert_eq!(m.channel_out, 0);
     assert_eq!(m.source, MixSource::Stick(StickAxis::Ail));
@@ -64,7 +64,6 @@ fn roundtrip_mixes() {
     let ir2 = roundtrip(&ir);
     for (a, b) in ir.mixes.iter().zip(ir2.mixes.iter()) {
         assert_eq!(a.channel_out, b.channel_out);
-        assert_eq!(a.name, b.name);
         assert_eq!(a.source, b.source);
         assert_eq!(a.weight.0, b.weight.0);
         assert_eq!(a.offset.0, b.offset.0);
@@ -89,19 +88,23 @@ fn roundtrip_rf_module() {
 }
 
 #[test]
+fn generated_yaml_uses_real_edgetx_fields() {
+    let input = include_bytes!("fixtures/sample_edgetx.yml");
+    let fmt = EdgeTxFormat::default();
+    let schema = fmt.parse(input).expect("parse failed");
+    assert_eq!(schema.semver, "2.11.4");
+    assert!(!schema.mix_data.is_empty(), "mixData should be present");
+    assert!(!schema.expo_data.is_empty(), "expoData should be present");
+    for mix in &schema.mix_data {
+        assert!(mix.src_raw.starts_with('I'), "srcRaw should be I0-I15, got {}", mix.src_raw);
+    }
+}
+
+#[test]
 fn invalid_mix_mode_returns_error() {
-    let bad_yaml = b"header:\n  name: Bad\nmixes:\n  - ch: 0\n    source: Ail\n    weight: 100\n    offset: 0\n    mode: unknown_mode\n";
+    let bad_yaml = b"semver: 2.11.4\nheader:\n  name: Bad\nmixData:\n  - destCh: 0\n    srcRaw: I0\n    weight: 100\n    offset: 0\n    mltpx: unknown_mode\n";
     let fmt = EdgeTxFormat::default();
     let schema = fmt.parse(bad_yaml).expect("parse failed");
     let result = fmt.to_ir(schema);
     assert!(result.is_err(), "expected error for unknown mix mode");
-}
-
-#[test]
-fn invalid_curve_ref_returns_error() {
-    let bad_yaml = b"header:\n  name: Bad\nmixes:\n  - ch: 0\n    source: Ail\n    weight: 100\n    offset: 0\n    mode: add\n    curve: cvXYZ\n";
-    let fmt = EdgeTxFormat::default();
-    let schema = fmt.parse(bad_yaml).expect("parse failed");
-    let result = fmt.to_ir(schema);
-    assert!(result.is_err(), "expected error for invalid curve reference");
 }

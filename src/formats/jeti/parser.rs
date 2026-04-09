@@ -2,7 +2,7 @@ use crate::error::ConversionError;
 use crate::formats::FormatParser;
 use crate::ir::model::*;
 use super::JetiFormat;
-use super::schema::{JetiModel, JetiMixValue, JetiServo, JetiTelemSensor, JetiTimer};
+use super::schema::{JetiFlightMode, JetiFunction, JetiFunctionSpec, JetiModel, JetiMixValue, JetiServo, JetiTelemSensor, JetiTimer};
 use serde_json::Value;
 use std::time::Duration;
 
@@ -31,6 +31,8 @@ impl FormatParser for JetiFormat {
             .map(|s| s.data)
             .unwrap_or_default();
 
+        let num_mixes = mixes_main.len();
+
         let mixes = mixes_main
             .iter()
             .enumerate()
@@ -39,11 +41,28 @@ impl FormatParser for JetiFormat {
                 let servo_idx = entry.first()?.as_u64()? as u8;
                 let func_idx = entry.get(1)?.as_u64()? as usize;
                 let func = functions.iter().find(|f| f.id as usize == func_idx)?;
-                // use first mix value for this mix (FM0)
+                // FM0 values are the first `num_mixes` entries in mix_values
                 let fm0 = mix_values.get(i)?;
                 Some(mix_to_ir(servo_idx, func.label.clone(), &func.control, fm0))
             })
             .collect();
+
+        let jeti_fms: Vec<JetiFlightMode> = schema
+            .flight_modes
+            .map(|s| s.data)
+            .unwrap_or_default();
+
+        let function_specs: Vec<JetiFunctionSpec> = schema
+            .function_specs
+            .unwrap_or_default();
+
+        let flight_modes: Vec<FlightMode> = jeti_fms
+            .iter()
+            .map(|fm| FlightMode { name: fm.label.clone() })
+            .collect();
+
+        let mut curves: Vec<Curve> = vec![];
+        let expo_settings = build_expo_settings(&functions, &function_specs, &mut curves);
 
         let channels = schema
             .servos
@@ -66,6 +85,8 @@ impl FormatParser for JetiFormat {
             .and_then(|s| s.data.into_iter().next())
             .map(timer_to_ir);
 
+        let _ = num_mixes; // used implicitly via mix_values.get(i)
+
         Ok(ModelIr {
             meta: ModelMeta {
                 name: schema.global.name,
@@ -74,12 +95,14 @@ impl FormatParser for JetiFormat {
             },
             channels,
             mixes,
-            curves: vec![],
+            curves,
             rf_modules: vec![],
             telemetry,
             logic_switches: vec![],
             special_functions: vec![],
             timer,
+            flight_modes,
+            expo_settings,
         })
     }
 }
@@ -155,6 +178,45 @@ fn mix_to_ir(channel_out: u8, name: String, control: &str, fm: &JetiMixValue) ->
         switch: None,
         mode: MixMode::Add,
     }
+}
+
+/// Build per-FM expo/DR settings from function specs.
+/// Also populates `curves` with any needed expo curves.
+fn build_expo_settings(
+    functions: &[JetiFunction],
+    specs: &[JetiFunctionSpec],
+    curves: &mut Vec<Curve>,
+) -> Vec<ExpoSetting> {
+    specs.iter().filter_map(|spec| {
+        let func = functions.iter().find(|f| f.id == spec.function_id)?;
+        let axis = match parse_jeti_control(&func.control) {
+            MixSource::Stick(a) => a,
+            _ => return None,
+        };
+        let dr = Percent(spec.dr_pos.first().copied().unwrap_or(100) as f32);
+        let expo_val = spec.expo_pos.first().copied().unwrap_or(0);
+        let curve = if expo_val > 0 {
+            // Reuse an existing expo curve with the same value, or create a new one.
+            let idx = curves.iter().position(|c| matches!(c, Curve::Expo { expo, .. } if expo.0 as i32 == expo_val))
+                .unwrap_or_else(|| {
+                    curves.push(Curve::Expo {
+                        name: None,
+                        expo: Percent(expo_val as f32),
+                        differential: Percent(0.0),
+                    });
+                    curves.len() - 1
+                });
+            Some(CurveRef(idx as u8))
+        } else {
+            None
+        };
+        Some(ExpoSetting {
+            flight_mode_idx: spec.flight_mode as usize,
+            axis,
+            dr,
+            curve,
+        })
+    }).collect()
 }
 
 /// Parse a Jeti control string "axis,sub,..." into a MixSource.
@@ -266,6 +328,23 @@ mod tests {
         assert_eq!(ir.meta.firmware_origin, FirmwareOrigin::JetiDuplex);
         assert!(!ir.channels.is_empty(), "channels should be populated");
         assert!(!ir.telemetry.is_empty(), "telemetry should be populated");
+        // Stream NXT has flight modes and expo settings.
+        assert!(!ir.flight_modes.is_empty(), "flight_modes should be populated");
+        assert!(!ir.expo_settings.is_empty(), "expo_settings should be populated");
+    }
+
+    #[test]
+    fn expo_settings_correct_for_stream_nxt() {
+        let fmt = JetiFormat::default();
+        let schema = fmt.parse(SAMPLE).expect("parse failed");
+        let ir = fmt.to_ir(schema).expect("to_ir failed");
+
+        // Each FM × axis pair should produce one ExpoSetting.
+        // Stream NXT has 5 FMs and 3 functions → 15 expo settings.
+        assert_eq!(ir.expo_settings.len(), 15);
+
+        // All expo curves should be created for non-zero expo values.
+        assert!(!ir.curves.is_empty(), "expo curves should be created");
     }
 
     #[test]

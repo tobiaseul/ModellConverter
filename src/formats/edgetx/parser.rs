@@ -3,6 +3,7 @@ use crate::formats::FormatParser;
 use crate::ir::model as ir;
 use super::EdgeTxFormat;
 use super::schema;
+use std::collections::HashMap;
 use std::time::Duration;
 
 impl FormatParser for EdgeTxFormat {
@@ -14,6 +15,9 @@ impl FormatParser for EdgeTxFormat {
     }
 
     fn to_ir(&self, m: schema::EdgeTxModel) -> Result<ir::ModelIr, ConversionError> {
+        // Build input-channel → stick mapping from expoData: chn → StickAxis
+        let input_map = build_input_map(&m.expo_data);
+
         Ok(ir::ModelIr {
             meta: ir::ModelMeta {
                 name: m.header.name,
@@ -21,19 +25,23 @@ impl FormatParser for EdgeTxFormat {
                 notes: m.header.notes,
             },
             channels: m
-                .outputs
+                .output_channels
                 .into_iter()
                 .enumerate()
                 .map(|(i, o)| ir::Channel {
                     index: i as u8,
-                    name: o.name,
+                    name: if o.name.is_empty() { None } else { Some(o.name) },
                     min: ir::Microseconds(o.min),
                     max: ir::Microseconds(o.max),
                     center: ir::Microseconds(o.offset),
-                    reversed: o.reverse,
+                    reversed: o.revert,
                 })
                 .collect(),
-            mixes: m.mixes.into_iter().map(mix_to_ir).collect::<Result<_, _>>()?,
+            mixes: m
+                .mix_data
+                .into_iter()
+                .map(|line| mix_to_ir(line, &input_map))
+                .collect::<Result<_, _>>()?,
             curves: m.curves.into_iter().map(curve_to_ir).collect(),
             rf_modules: m.module_data.into_iter().map(module_to_ir).collect(),
             telemetry: m.telemetry.into_iter().map(sensor_to_ir).collect(),
@@ -49,57 +57,95 @@ impl FormatParser for EdgeTxFormat {
                 .map(sf_to_ir)
                 .collect::<Result<_, _>>()?,
             timer: m.timers.into_iter().next().map(timer_to_ir),
+            flight_modes: m.flight_modes.into_iter().map(|fm| ir::FlightMode { name: fm.name }).collect(),
+            expo_settings: build_expo_settings(&m.expo_data, &input_map),
         })
     }
 }
 
-fn mix_to_ir(m: schema::MixLine) -> Result<ir::Mix, ConversionError> {
-    let curve = m
-        .curve
-        .map(|c| {
-            c.trim_start_matches("cv")
-                .parse::<u8>()
-                .map(ir::CurveRef)
-                .map_err(|_| ConversionError::EdgeTxParse(format!("invalid curve reference: {c}")))
-        })
-        .transpose()?;
+// ── helpers ──────────────────────────────────────────────────────────────────
 
-    let mode = match m.mode.as_str() {
-        "add" | "" => ir::MixMode::Add,
-        "replace" => ir::MixMode::Replace,
-        "multiply" => ir::MixMode::Multiply,
-        other => return Err(ConversionError::EdgeTxParse(format!("unknown mix mode: {other}"))),
+/// Build a map of input-channel index → StickAxis from the expoData section.
+fn build_input_map(expo: &[schema::ExpoLine]) -> HashMap<u8, ir::StickAxis> {
+    expo.iter()
+        .filter_map(|e| parse_stick_raw(&e.src_raw).map(|axis| (e.chn, axis)))
+        .collect()
+}
+
+/// Parse a raw stick name ("Ail", "Ele", "Thr", "Rud", "S1", "S2", "LS", "RS").
+fn parse_stick_raw(s: &str) -> Option<ir::StickAxis> {
+    match s {
+        "Ail" | "ail" => Some(ir::StickAxis::Ail),
+        "Ele" | "ele" => Some(ir::StickAxis::Ele),
+        "Thr" | "thr" => Some(ir::StickAxis::Thr),
+        "Rud" | "rud" => Some(ir::StickAxis::Rud),
+        "S1"  | "s1"  => Some(ir::StickAxis::S1),
+        "S2"  | "s2"  => Some(ir::StickAxis::S2),
+        "LS"  | "ls"  => Some(ir::StickAxis::LS),
+        "RS"  | "rs"  => Some(ir::StickAxis::RS),
+        _ => None,
+    }
+}
+
+fn parse_src_raw(s: &str, input_map: &HashMap<u8, ir::StickAxis>) -> ir::MixSource {
+    // "I0"–"I15" → look up in input_map
+    if let Some(rest) = s.strip_prefix('I').or_else(|| s.strip_prefix('i')) {
+        if let Ok(idx) = rest.parse::<u8>() {
+            if let Some(axis) = input_map.get(&idx) {
+                return ir::MixSource::Stick(axis.clone());
+            }
+        }
+    }
+    // Direct stick names
+    if let Some(axis) = parse_stick_raw(s) {
+        return ir::MixSource::Stick(axis);
+    }
+    // "CH1"–"CH32" (1-indexed in EdgeTX)
+    if let Some(rest) = s.strip_prefix("CH").or_else(|| s.strip_prefix("ch")) {
+        if let Ok(n) = rest.parse::<u8>() {
+            return ir::MixSource::Channel(n.saturating_sub(1));
+        }
+    }
+    ir::MixSource::Constant(ir::Percent(0.0))
+}
+
+fn mix_to_ir(
+    m: schema::MixLine,
+    input_map: &HashMap<u8, ir::StickAxis>,
+) -> Result<ir::Mix, ConversionError> {
+    let curve = if m.curve.curve_type == 0 {
+        None
+    } else {
+        Some(ir::CurveRef(m.curve.value as u8))
+    };
+
+    let mode = match m.mltpx.as_str() {
+        "ADD" | "add" | "" => ir::MixMode::Add,
+        "MULTIPLY" | "multiply" => ir::MixMode::Multiply,
+        "REPLACE" | "replace" => ir::MixMode::Replace,
+        other => {
+            return Err(ConversionError::EdgeTxParse(format!(
+                "unknown mix mode: {other}"
+            )))
+        }
+    };
+
+    let switch = if m.swtch == "NONE" || m.swtch.is_empty() {
+        None
+    } else {
+        Some(parse_switch_condition(&m.swtch))
     };
 
     Ok(ir::Mix {
-        channel_out: m.channel,
-        name: m.name,
-        source: parse_source(&m.source),
+        channel_out: m.dest_ch,
+        name: if m.name.is_empty() { None } else { Some(m.name) },
+        source: parse_src_raw(&m.src_raw, input_map),
         weight: ir::Percent(m.weight as f32),
         offset: ir::Percent(m.offset as f32),
         curve,
-        switch: m.switch.as_deref().map(parse_switch_condition),
+        switch,
         mode,
     })
-}
-
-fn parse_source(s: &str) -> ir::MixSource {
-    match s {
-        "Ail" | "ail" => ir::MixSource::Stick(ir::StickAxis::Ail),
-        "Ele" | "ele" => ir::MixSource::Stick(ir::StickAxis::Ele),
-        "Thr" | "thr" => ir::MixSource::Stick(ir::StickAxis::Thr),
-        "Rud" | "rud" => ir::MixSource::Stick(ir::StickAxis::Rud),
-        "S1" | "s1" => ir::MixSource::Stick(ir::StickAxis::S1),
-        "S2" | "s2" => ir::MixSource::Stick(ir::StickAxis::S2),
-        "LS" | "ls" => ir::MixSource::Stick(ir::StickAxis::LS),
-        "RS" | "rs" => ir::MixSource::Stick(ir::StickAxis::RS),
-        s if s.starts_with("ch") => s
-            .trim_start_matches("ch")
-            .parse::<u8>()
-            .map(ir::MixSource::Channel)
-            .unwrap_or(ir::MixSource::Constant(ir::Percent(0.0))),
-        _ => ir::MixSource::Constant(ir::Percent(0.0)),
-    }
 }
 
 fn parse_switch_condition(s: &str) -> ir::SwitchCondition {
@@ -114,10 +160,7 @@ fn parse_switch_condition(s: &str) -> ir::SwitchCondition {
     } else {
         (s, ir::SwitchPosition::Active)
     };
-    ir::SwitchCondition {
-        switch: sw.to_string(),
-        position: pos,
-    }
+    ir::SwitchCondition { switch: sw.to_string(), position: pos }
 }
 
 fn curve_to_ir(c: schema::CurveDef) -> ir::Curve {
@@ -133,10 +176,7 @@ fn curve_to_ir(c: schema::CurveDef) -> ir::Curve {
             points: c
                 .points
                 .into_iter()
-                .map(|p| ir::CurvePoint {
-                    x: ir::Percent(p[0] as f32),
-                    y: ir::Percent(p[1] as f32),
-                })
+                .map(|p| ir::CurvePoint { x: ir::Percent(p[0] as f32), y: ir::Percent(p[1] as f32) })
                 .collect(),
         }
     }
@@ -195,6 +235,33 @@ fn sf_to_ir(sf: schema::SpecialFunction) -> Result<ir::SpecialFunction, Conversi
         parameter: sf.param,
         enabled: sf.enabled,
     })
+}
+
+/// Parse expoData lines into IR ExpoSettings.
+/// Each line carries weight (dual-rate %) and an optional curve reference,
+/// plus a flight-mode mask ("000000000" = active in all, "100000000" = FM0 only, etc.)
+fn build_expo_settings(
+    expo: &[schema::ExpoLine],
+    input_map: &HashMap<u8, ir::StickAxis>,
+) -> Vec<ir::ExpoSetting> {
+    expo.iter()
+        .filter_map(|e| {
+            let axis = input_map.get(&e.chn)?.clone();
+            let dr = ir::Percent(e.weight as f32);
+            let curve = if e.curve.curve_type == 0 {
+                None
+            } else {
+                Some(ir::CurveRef(e.curve.value as u8))
+            };
+            // Decode flight-mode mask: position i = '0' means active in FM i.
+            // "000000000" (all zeros) → active in all → use flight_mode_idx 0 as sentinel.
+            let flight_mode_idx = e.flight_modes
+                .chars()
+                .position(|c| c == '0')
+                .unwrap_or(0);
+            Some(ir::ExpoSetting { flight_mode_idx, axis, dr, curve })
+        })
+        .collect()
 }
 
 fn timer_to_ir(t: schema::TimerDef) -> ir::Timer {
