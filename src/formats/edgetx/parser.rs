@@ -57,6 +57,8 @@ impl FormatParser for EdgeTxFormat {
                 .map(sf_to_ir)
                 .collect::<Result<_, _>>()?,
             timer: m.timers.into_iter().next().map(timer_to_ir),
+            flight_modes: m.flight_modes.into_iter().map(|fm| ir::FlightMode { name: fm.name }).collect(),
+            expo_settings: build_expo_settings(&m.expo_data, &input_map),
         })
     }
 }
@@ -233,6 +235,33 @@ fn sf_to_ir(sf: schema::SpecialFunction) -> Result<ir::SpecialFunction, Conversi
         parameter: sf.param,
         enabled: sf.enabled,
     })
+}
+
+/// Parse expoData lines into IR ExpoSettings.
+/// Each line carries weight (dual-rate %) and an optional curve reference,
+/// plus a flight-mode mask ("000000000" = active in all, "100000000" = FM0 only, etc.)
+fn build_expo_settings(
+    expo: &[schema::ExpoLine],
+    input_map: &HashMap<u8, ir::StickAxis>,
+) -> Vec<ir::ExpoSetting> {
+    expo.iter()
+        .filter_map(|e| {
+            let axis = input_map.get(&e.chn)?.clone();
+            let dr = ir::Percent(e.weight as f32);
+            let curve = if e.curve.curve_type == 0 {
+                None
+            } else {
+                Some(ir::CurveRef(e.curve.value as u8))
+            };
+            // Decode flight-mode mask: position i = '0' means active in FM i.
+            // "000000000" (all zeros) → active in all → use flight_mode_idx 0 as sentinel.
+            let flight_mode_idx = e.flight_modes
+                .chars()
+                .position(|c| c == '0')
+                .unwrap_or(0);
+            Some(ir::ExpoSetting { flight_mode_idx, axis, dr, curve })
+        })
+        .collect()
 }
 
 fn timer_to_ir(t: schema::TimerDef) -> ir::Timer {

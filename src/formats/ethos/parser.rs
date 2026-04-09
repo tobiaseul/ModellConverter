@@ -36,6 +36,8 @@ impl FormatParser for EthosFormat {
             logic_switches: vec![],    // TODO: pending RE
             special_functions: vec![], // TODO: pending RE
             timer: None,               // TODO: pending RE
+            flight_modes: vec![],
+            expo_settings: vec![],
         })
     }
 }

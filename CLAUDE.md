@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # ModellConverter
 
 Cross-platform RC transmitter model file converter supporting EdgeTX, Ethos, and Jeti Duplex formats. Desktop GUI via Tauri + Rust backend.
@@ -40,6 +44,7 @@ src/
   │   └── jeti/             # Jeti Duplex (in development)
   │       ├── mod.rs
   │       ├── parser.rs
+  │       ├── serializer.rs
   │       └── schema.rs
   └── reveng/               # Reverse engineering tools
       ├── mod.rs
@@ -62,15 +67,23 @@ ui/                         # Web frontend (HTML/CSS/JS)
 ## Key Patterns
 
 ### Format Implementation
-Each format module implements the `Format` trait:
+Each format module implements two traits from `src/formats/mod.rs`:
+
 ```rust
-pub trait Format {
-    fn from_bytes(bytes: &[u8]) -> Result<ir::Model>;
-    fn to_bytes(model: &ir::Model) -> Result<Vec<u8>>;
+pub trait FormatParser {
+    type Schema;
+    fn parse(&self, input: &[u8]) -> Result<Self::Schema, ConversionError>;
+    fn to_ir(&self, schema: Self::Schema) -> Result<ModelIr, ConversionError>;
+}
+
+pub trait FormatSerializer {
+    type Schema;
+    fn from_ir(&self, ir: &ModelIr) -> Result<Self::Schema, ConversionError>;
+    fn serialize(&self, schema: &Self::Schema) -> Result<Vec<u8>, ConversionError>;
 }
 ```
 
-All formats convert through a common Intermediate Representation (`ir::Model`). This decouples format logic and enables format-to-format conversions.
+The conversion pipeline is: `parse → to_ir → from_ir → serialize`. All formats convert through `ModelIr` (`src/ir/model.rs`), which is the central intermediate representation decoupling all format logic.
 
 ### Error Handling
 - Custom error types in `error.rs` using `thiserror`
@@ -107,7 +120,9 @@ cargo tauri build
 
 # Tests
 cargo test
-cargo test -- --nocapture   # With output
+cargo test -- --nocapture          # With output
+cargo test test_name               # Run a single test by name
+cargo test formats::edgetx         # Run tests for a specific module
 ```
 
 ## Testing
@@ -126,12 +141,9 @@ cargo test -- --nocapture   # With output
    - `serializer.rs` — Serialization logic
    - `schema.rs` — Data structures (if binary format)
 
-2. Implement `Format` trait in `mod.rs`
+2. Implement `FormatParser` and `FormatSerializer` traits in `mod.rs`
 
-3. Register in `src/convert.rs`:
-   ```rust
-   "newformat" => formats::newformat::Format::from_bytes(bytes),
-   ```
+3. Register in `src/convert.rs` — add a match arm in both the parse and serialize blocks of `convert()`
 
 4. Add tests in format module
 

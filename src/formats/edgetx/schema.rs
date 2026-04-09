@@ -75,6 +75,8 @@ pub struct EdgeTxModel {
 
     // Optional sections (absent = empty / no limits set)
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub flight_modes: Vec<FlightModeDef>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub output_channels: Vec<OutputChannel>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub curves: Vec<CurveDef>,
@@ -129,7 +131,7 @@ impl Default for EdgeTxModel {
             model_sf_disabled: default_global(),
             model_custom_scripts_disabled: default_global(),
             model_telemetry_disabled: default_global(),
-            output_channels: vec![], curves: vec![], logical_switches: vec![],
+            flight_modes: vec![], output_channels: vec![], curves: vec![], logical_switches: vec![],
             special_functions: vec![], telemetry: vec![], timers: vec![],
             module_data: vec![],
         }
@@ -337,6 +339,18 @@ impl Default for TrainerData {
     fn default() -> Self {
         Self { mode: "OFF".into(), channels_start: 0, channels_count: -8, frame_length: 0, delay: 0, pulse_pol: 0 }
     }
+}
+
+// ── flightModes ───────────────────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize, Serialize, Default)]
+#[serde(rename_all = "camelCase", default)]
+pub struct FlightModeDef {
+    pub name: String,
+    #[serde(default = "default_swtch")]
+    pub switch: String,
+    pub fade_in: u8,
+    pub fade_out: u8,
 }
 
 // ── outputChannels ────────────────────────────────────────────────────────────

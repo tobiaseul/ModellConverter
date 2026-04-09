@@ -25,13 +25,12 @@ impl FormatSerializer for EdgeTxFormat {
     type Schema = schema::EdgeTxModel;
 
     fn from_ir(&self, model: &ir::ModelIr) -> Result<schema::EdgeTxModel, ConversionError> {
-        // Collect which stick axes are actually used in mixes, preserving RETA order.
+        // Collect stick axes used in mixes OR expo settings, preserving RETA order.
         let used_axes: Vec<ir::StickAxis> = RETA_ORDER
             .iter()
             .filter(|ax| {
-                model.mixes.iter().any(|m| {
-                    matches!(&m.source, ir::MixSource::Stick(a) if a == *ax)
-                })
+                model.mixes.iter().any(|m| matches!(&m.source, ir::MixSource::Stick(a) if a == *ax))
+                || model.expo_settings.iter().any(|s| &s.axis == *ax)
             })
             .cloned()
             .collect();
@@ -43,10 +42,11 @@ impl FormatSerializer for EdgeTxFormat {
             .map(|(i, ax)| (ax.clone(), i as u8))
             .collect();
 
-        let expo_data = build_expo_data(&used_axes);
+        let expo_data = build_expo_data(&used_axes, &axis_to_input, &model.expo_settings, model.flight_modes.len());
         let input_names = build_input_names(&used_axes);
         let mix_data = model.mixes.iter().map(|m| mix_from_ir(m, &axis_to_input)).collect();
         let output_channels = model.channels.iter().map(channel_from_ir).collect();
+        let flight_modes = model.flight_modes.iter().map(fm_from_ir).collect();
 
         Ok(schema::EdgeTxModel {
             semver: SEMVER.into(),
@@ -59,6 +59,7 @@ impl FormatSerializer for EdgeTxFormat {
             expo_data,
             input_names,
             output_channels,
+            flight_modes,
             curves: model.curves.iter().map(curve_from_ir).collect(),
             module_data: model.rf_modules.iter().map(module_from_ir).collect(),
             telemetry: model.telemetry.iter().map(sensor_from_ir).collect(),
@@ -91,17 +92,69 @@ fn stick_to_raw_name(ax: &ir::StickAxis) -> &'static str {
     }
 }
 
-fn build_expo_data(axes: &[ir::StickAxis]) -> Vec<schema::ExpoLine> {
-    axes.iter()
-        .enumerate()
-        .map(|(i, ax)| schema::ExpoLine {
-            src_raw: stick_to_raw_name(ax).into(),
-            mode: 3,
-            chn: i as u8,
-            weight: 100,
-            ..Default::default()
-        })
+fn build_expo_data(
+    axes: &[ir::StickAxis],
+    axis_to_input: &HashMap<ir::StickAxis, u8>,
+    expo_settings: &[ir::ExpoSetting],
+    num_fms: usize,
+) -> Vec<schema::ExpoLine> {
+    let mut lines = vec![];
+    for ax in axes {
+        let chn = *axis_to_input.get(ax).unwrap_or(&0);
+        let ax_specs: Vec<&ir::ExpoSetting> = expo_settings.iter().filter(|s| &s.axis == ax).collect();
+
+        if ax_specs.is_empty() {
+            // No expo configured for this axis — emit a plain passthrough line.
+            lines.push(schema::ExpoLine {
+                src_raw: stick_to_raw_name(ax).into(),
+                mode: 3,
+                chn,
+                weight: 100,
+                ..Default::default()
+            });
+            continue;
+        }
+
+        // Check if all FMs share the same DR and curve.
+        let all_same = ax_specs.windows(2).all(|w| w[0].dr == w[1].dr && w[0].curve == w[1].curve);
+
+        if all_same || num_fms <= 1 {
+            // Single line active in all FMs.
+            let s = &ax_specs[0];
+            lines.push(expo_line(ax, chn, s, schema::default_flight_modes()));
+        } else {
+            // One line per FM, each active only in its flight mode.
+            for s in &ax_specs {
+                let fm_mask = fm_mask(s.flight_mode_idx, num_fms);
+                lines.push(expo_line(ax, chn, s, fm_mask));
+            }
+        }
+    }
+    lines
+}
+
+/// Build a 9-character flight-mode mask string where position `active_idx` is '0'
+/// (active) and all other positions up to `num_fms` are '1' (inactive).
+fn fm_mask(active_idx: usize, num_fms: usize) -> String {
+    (0..9)
+        .map(|i| if i == active_idx && i < num_fms { '0' } else { '1' })
         .collect()
+}
+
+fn expo_line(ax: &ir::StickAxis, chn: u8, s: &ir::ExpoSetting, flight_modes: String) -> schema::ExpoLine {
+    let curve = match &s.curve {
+        None => MixCurve::default(),
+        Some(ir::CurveRef(idx)) => MixCurve { curve_type: 6, value: *idx as i32 },
+    };
+    schema::ExpoLine {
+        src_raw: stick_to_raw_name(ax).into(),
+        mode: 3,
+        chn,
+        weight: s.dr.0 as i32,
+        curve,
+        flight_modes,
+        ..Default::default()
+    }
 }
 
 fn build_input_names(axes: &[ir::StickAxis]) -> HashMap<String, InputName> {
@@ -162,6 +215,17 @@ fn switch_condition_to_str(sc: &ir::SwitchCondition) -> String {
         ir::SwitchPosition::Inactive => "!",
     };
     format!("{}{}", sc.switch, suffix)
+}
+
+// ── flight modes ─────────────────────────────────────────────────────────────
+
+fn fm_from_ir(fm: &ir::FlightMode) -> schema::FlightModeDef {
+    schema::FlightModeDef {
+        name: fm.name.clone(),
+        switch: "NONE".into(),
+        fade_in: 0,
+        fade_out: 0,
+    }
 }
 
 // ── output channels ───────────────────────────────────────────────────────────
