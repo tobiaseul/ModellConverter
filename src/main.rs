@@ -18,7 +18,23 @@ fn main() -> Result<()> {
 
     match cli.command {
         Commands::Convert { from, input, output } => {
-            convert::run(from.into(), modell_converter::format::Format::Edgetx, &input, output.as_deref())?;
+            let to = modell_converter::format::Format::Edgetx;
+            let is_batch = input.is_dir()
+                || input.extension().and_then(|e| e.to_str()) == Some("zip");
+            if is_batch {
+                let out_dir = match output {
+                    Some(p) => p,
+                    None => {
+                        let stem = input.file_stem().unwrap_or_default();
+                        let mut name = stem.to_os_string();
+                        name.push("_converted");
+                        input.parent().unwrap_or(std::path::Path::new(".")).join(name)
+                    }
+                };
+                convert::run_batch(from.into(), to, &input, &out_dir)?;
+            } else {
+                convert::run(from.into(), to, &input, output.as_deref())?;
+            }
         }
         Commands::ReverseEng { tool } => match tool {
             RevEngTool::Hexdump { file, offset, len, width } => {
